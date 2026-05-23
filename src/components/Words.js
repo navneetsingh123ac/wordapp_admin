@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useCallback } from 'react';
+import api from '../services/api';
 
-const API_BASE = 'https://wordgame-backend-2sza.onrender.com/api';
-
-function Words({ token }) {
+function Words() {
   const [words, setWords] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -18,47 +16,38 @@ function Words({ token }) {
     memeImage: null
   });
 
-  const axiosConfig = {
-    headers: { Authorization: `Bearer ${token}` }
-  };
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE}/admin/categories`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/categories');
       setCategories(response.data);
       if (response.data.length > 0) {
         setSelectedCategory(response.data[0].name);
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.error('Error:', error);
     }
-  };
+  }, []);
 
-  const fetchWords = async () => {
+  const fetchWords = useCallback(async () => {
     if (!selectedCategory) return;
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE}/words/category/${selectedCategory}?page=0&size=100`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get(`/words/category/${encodeURIComponent(selectedCategory)}?page=0&size=100`);
       setWords(response.data.words || []);
     } catch (error) {
-      console.error('Error fetching words:', error);
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  };
+  }, [selectedCategory]);
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [fetchCategories]);
 
   useEffect(() => {
-    if (selectedCategory) {
-      fetchWords();
-    }
-  }, [selectedCategory]);
+    fetchWords();
+  }, [selectedCategory, fetchWords]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -66,18 +55,18 @@ function Words({ token }) {
     form.append('word', formData.word);
     form.append('meaning', formData.meaning);
     form.append('categoryId', formData.categoryId);
-    formData.examples.forEach(ex => form.append('examples[]', ex));
+    formData.examples.forEach(ex => ex.trim() && form.append('examples[]', ex));
     if (formData.memeImage) form.append('memeImage', formData.memeImage);
 
     try {
       if (editingWord) {
-        await axios.put(`${API_BASE}/admin/words/${editingWord.id}`, form, {
-          headers: { ...axiosConfig.headers, 'Content-Type': 'multipart/form-data' }
+        await api.put(`/admin/words/${editingWord.id}`, form, {
+          headers: { 'Content-Type': 'multipart/form-data' }
         });
         alert('Word updated successfully');
       } else {
-        await axios.post(`${API_BASE}/admin/words`, form, {
-          headers: { ...axiosConfig.headers, 'Content-Type': 'multipart/form-data' }
+        await api.post('/admin/words', form, {
+          headers: { 'Content-Type': 'multipart/form-data' }
         });
         alert('Word created successfully');
       }
@@ -93,7 +82,7 @@ function Words({ token }) {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure?')) {
       try {
-        await axios.delete(`${API_BASE}/admin/words/${id}`, axiosConfig);
+        await api.delete(`/admin/words/${id}`);
         alert('Word deleted successfully');
         fetchWords();
       } catch (error) {
@@ -102,32 +91,7 @@ function Words({ token }) {
     }
   };
 
-  const editWord = (word) => {
-    setEditingWord(word);
-    setFormData({
-      word: word.word,
-      meaning: word.meaning,
-      categoryId: word.categoryId || '',
-      examples: [],
-      memeImage: null
-    });
-    setShowModal(true);
-  };
-
-  const addExample = () => {
-    setFormData({ ...formData, examples: [...formData.examples, ''] });
-  };
-
-  const updateExample = (index, value) => {
-    const newExamples = [...formData.examples];
-    newExamples[index] = value;
-    setFormData({ ...formData, examples: newExamples });
-  };
-
-  const removeExample = (index) => {
-    const newExamples = formData.examples.filter((_, i) => i !== index);
-    setFormData({ ...formData, examples: newExamples });
-  };
+  if (loading) return <div className="loading">Loading words...</div>;
 
   return (
     <div>
@@ -136,113 +100,59 @@ function Words({ token }) {
           <h2>Words</h2>
           <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
             {categories.map(cat => (
-              <option key={cat.id} value={cat.name}>{cat.name}</option>
+              <option key={cat.id} value={cat.name}>{cat.name} ({cat.wordCount} words)</option>
             ))}
           </select>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          + Add Word
-        </button>
+        <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Add Word</button>
       </div>
 
-      {loading ? (
-        <div className="loading">Loading...</div>
-      ) : (
-        <div className="card">
+      <div className="card">
+        {words.length === 0 ? (
+          <p style={{ textAlign: 'center', padding: '2rem' }}>No words found. Add some words!</p>
+        ) : (
           <table>
             <thead>
-              <tr>
-                <th>ID</th>
-                <th>Image</th>
-                <th>Word</th>
-                <th>Meaning</th>
-                <th>Actions</th>
-              </tr>
+              <tr><th>ID</th><th>Image</th><th>Word</th><th>Meaning</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {words.map(word => (
                 <tr key={word.id}>
                   <td>{word.id}</td>
                   <td>
-                    {word.memeImageUrl && (
-                      <img src={word.memeImageUrl} alt={word.word} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 5 }} />
-                    )}
+                    {word.memeImageUrl && <img src={word.memeImageUrl} alt={word.word} style={{ width: 40, height: 40, objectFit: 'cover' }} />}
                   </td>
                   <td>{word.word}</td>
                   <td>{word.meaning}</td>
                   <td>
-                    <button className="btn btn-sm btn-primary" onClick={() => editWord(word)}>Edit</button>
-                    <button className="btn btn-sm btn-danger" onClick={() => handleDelete(word.id)} style={{ marginLeft: 5 }}>Delete</button>
+                    <button className="btn btn-sm btn-primary" onClick={() => {
+                      setEditingWord(word);
+                      setFormData({ word: word.word, meaning: word.meaning, categoryId: word.categoryId || '', examples: [], memeImage: null });
+                      setShowModal(true);
+                    }}>Edit</button>
+                    <button className="btn btn-sm btn-danger" onClick={() => handleDelete(word.id)}>Delete</button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-      )}
+        )}
+      </div>
 
       {showModal && (
         <div className="modal" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h3>{editingWord ? 'Edit Word' : 'Add Word'}</h3>
             <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Word</label>
-                <input
-                  type="text"
-                  value={formData.word}
-                  onChange={e => setFormData({ ...formData, word: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Meaning</label>
-                <textarea
-                  value={formData.meaning}
-                  onChange={e => setFormData({ ...formData, meaning: e.target.value })}
-                  rows="3"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Category</label>
-                <select
-                  value={formData.categoryId}
-                  onChange={e => setFormData({ ...formData, categoryId: e.target.value })}
-                  required
-                >
-                  <option value="">Select Category</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Examples</label>
-                {formData.examples.map((ex, idx) => (
-                  <div key={idx} style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
-                    <input
-                      type="text"
-                      value={ex}
-                      onChange={e => updateExample(idx, e.target.value)}
-                      placeholder={`Example ${idx + 1}`}
-                      style={{ flex: 1 }}
-                    />
-                    <button type="button" className="btn btn-sm btn-danger" onClick={() => removeExample(idx)}>X</button>
-                  </div>
-                ))}
-                <button type="button" className="btn btn-sm btn-primary" onClick={addExample}>+ Add Example</button>
-              </div>
-              <div className="form-group">
-                <label>Meme Image</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={e => setFormData({ ...formData, memeImage: e.target.files[0] })}
-                />
-              </div>
+              <input type="text" placeholder="Word" value={formData.word} onChange={e => setFormData({ ...formData, word: e.target.value })} required />
+              <textarea placeholder="Meaning" value={formData.meaning} onChange={e => setFormData({ ...formData, meaning: e.target.value })} rows="3" required />
+              <select value={formData.categoryId} onChange={e => setFormData({ ...formData, categoryId: e.target.value })} required>
+                <option value="">Select Category</option>
+                {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+              </select>
+              <input type="file" accept="image/*" onChange={e => setFormData({ ...formData, memeImage: e.target.files[0] })} />
               <button type="submit" className="btn btn-primary">Save</button>
-              <button type="button" className="btn" onClick={() => setShowModal(false)} style={{ marginLeft: 10 }}>Cancel</button>
+              <button type="button" className="btn" onClick={() => setShowModal(false)}>Cancel</button>
             </form>
           </div>
         </div>

@@ -219,6 +219,7 @@ function Categories() {
   const [showEditor, setShowEditor]       = useState(false);
 
   const dropZoneRef = useRef(null);
+  const fileInputRef  = useRef(null);
 
   const fetchCategories = useCallback(async () => {
     setLoading(true); setError(null);
@@ -378,10 +379,9 @@ function Categories() {
                     <span style={s.dropIcon}>🖼️</span>
                     <span style={s.dropText}>
                       Drop image here,{' '}
-                      <label style={s.browseLink}>
+                      <span style={s.browseLink} onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }}>
                         browse
-                        <input type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
-                      </label>
+                      </span>
                       , or <strong>Ctrl+V</strong> to paste
                     </span>
                     <span style={s.dropSub}>You can freely set width &amp; height before uploading</span>
@@ -395,6 +395,15 @@ function Categories() {
           </div>
         </div>
       )}
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
 
       {/* Image Editor */}
       {showEditor && rawFile && (
@@ -422,7 +431,7 @@ const s = {
   btnRemove:     { background: '#ef4444', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 12 },
 
   // Editor overlay
-  editorOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 },
+  editorOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 },
   editorBox:     { background: '#fff', borderRadius: 12, padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.4)', maxWidth: 420, width: '100%' },
   editorTitle:   { margin: 0, fontSize: 18, fontWeight: 700 },
   editorHint:    { margin: 0, fontSize: 12, color: '#888' },

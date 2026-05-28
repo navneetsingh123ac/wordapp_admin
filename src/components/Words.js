@@ -62,10 +62,6 @@ function ImageEditor({ file, onConfirm, onCancel }) {
   const handleMouseMove = (e) => {
     if (!dragging || !dragStart || !img) return;
     const scale = size / PREVIEW;
-    const dx = (e.clientX - dragStart.mx) * scale;
-    const dy = (e.clientY - dragStart.my) * scale;
-    const newX = dragStart.mx0 * scale - dx + offset.x - (offset.x - (dragStart.mx0 * scale));
-    // simpler recalc:
     const ox = dragStart.mx0 * scale + (dragStart.mx - e.clientX) * scale;
     const oy = dragStart.my0 * scale + (dragStart.my - e.clientY) * scale;
     setOffset(clampOffset(ox, oy, size, img));
@@ -387,6 +383,46 @@ function Words() {
                 )}
               </div>
 
+              {/* ── Examples ── */}
+              <div style={styles.examplesSection}>
+                <div style={styles.examplesHeader}>
+                  <label style={styles.examplesLabel}>Examples</label>
+                  <button
+                    type="button"
+                    style={styles.btnAddExample}
+                    onClick={() => setFormData({ ...formData, examples: [...formData.examples, ''] })}
+                  >
+                    + Add Example
+                  </button>
+                </div>
+                {formData.examples.length === 0 && (
+                  <p style={styles.examplesEmpty}>No examples yet. Click &quot;+ Add Example&quot; to add one.</p>
+                )}
+                {formData.examples.map((ex, i) => (
+                  <div key={i} style={styles.exampleRow}>
+                    <span style={styles.exampleNum}>{i + 1}</span>
+                    <input
+                      type="text"
+                      placeholder={`Example sentence ${i + 1}`}
+                      value={ex}
+                      onChange={e => {
+                        const updated = [...formData.examples];
+                        updated[i] = e.target.value;
+                        setFormData({ ...formData, examples: updated });
+                      }}
+                      style={styles.exampleInput}
+                    />
+                    <button
+                      type="button"
+                      style={styles.btnRemoveExample}
+                      onClick={() => setFormData({ ...formData, examples: formData.examples.filter((_, j) => j !== i) })}
+                    >
+                      &#x2715;
+                    </button>
+                  </div>
+                ))}
+              </div>
+
               <button type="submit" className="btn btn-primary">Save</button>
               <button type="button" className="btn" onClick={closeModal}>Cancel</button>
             </form>
@@ -458,6 +494,16 @@ const styles = {
   editorMeta: { fontSize: 11, color: '#aaa', textAlign: 'center' },
   editorLoading: { padding: '2rem', color: '#888' },
   editorActions: { display: 'flex', gap: 10, width: '100%', justifyContent: 'flex-end' },
+  // Examples
+  examplesSection: { marginBottom: 10 },
+  examplesHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  examplesLabel: { fontWeight: 600, fontSize: 13 },
+  examplesEmpty: { fontSize: 12, color: '#aaa', margin: '4px 0 8px', fontStyle: 'italic' },
+  exampleRow: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 },
+  exampleNum: { fontSize: 12, color: '#888', minWidth: 16, textAlign: 'right' },
+  exampleInput: { flex: 1, padding: '6px 10px', borderRadius: 5, border: '1px solid #ccc', fontSize: 13 },
+  btnAddExample: { background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 5, padding: '4px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600 },
+  btnRemoveExample: { background: '#ef4444', color: '#fff', border: 'none', borderRadius: 5, width: 24, height: 24, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   btnCancel: { padding: '8px 18px', borderRadius: 6, border: '1px solid #ccc', background: '#fff', cursor: 'pointer', fontSize: 14 },
   btnConfirm: { padding: '8px 18px', borderRadius: 6, border: 'none', background: '#4f46e5', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
 };

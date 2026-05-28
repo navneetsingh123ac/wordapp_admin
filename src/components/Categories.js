@@ -19,7 +19,6 @@ function ImageEditor({ file, onConfirm, onCancel }) {
 
   const PREVIEW = 340;
 
-  // Load image
   useEffect(() => {
     if (!file) return;
 
@@ -59,9 +58,6 @@ function ImageEditor({ file, onConfirm, onCancel }) {
     canvas.width = pw;
     canvas.height = ph;
 
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-
     ctx.fillStyle = '#111827';
     ctx.fillRect(0, 0, pw, ph);
 
@@ -77,7 +73,7 @@ function ImageEditor({ file, onConfirm, onCancel }) {
       ph
     );
 
-    // Grid
+    // grid
     ctx.strokeStyle = 'rgba(255,255,255,0.12)';
     ctx.lineWidth = 1;
 
@@ -99,7 +95,6 @@ function ImageEditor({ file, onConfirm, onCancel }) {
     y: Math.max(0, Math.min(image.height - h, y)),
   });
 
-  // Mouse drag
   const handleMouseDown = (e) => {
     setDragging(true);
 
@@ -131,39 +126,6 @@ function ImageEditor({ file, onConfirm, onCancel }) {
     setDragging(false);
   };
 
-  // Touch drag
-  const handleTouchStart = (e) => {
-    const touch = e.touches[0];
-
-    setDragging(true);
-
-    setDragStart({
-      mx: touch.clientX,
-      my: touch.clientY,
-      ox: offset.x,
-      oy: offset.y,
-    });
-  };
-
-  const handleTouchMove = (e) => {
-    if (!dragging || !dragStart || !img) return;
-
-    const touch = e.touches[0];
-
-    const scale = Math.max(cropW, cropH) / PREVIEW;
-
-    const ox =
-      dragStart.ox +
-      (dragStart.mx - touch.clientX) * scale;
-
-    const oy =
-      dragStart.oy +
-      (dragStart.my - touch.clientY) * scale;
-
-    setOffset(clamp(ox, oy, cropW, cropH, img));
-  };
-
-  // Width
   const handleWidthChange = (val) => {
     if (!img) return;
 
@@ -191,7 +153,6 @@ function ImageEditor({ file, onConfirm, onCancel }) {
     setCropW(w);
   };
 
-  // Height
   const handleHeightChange = (val) => {
     if (!img) return;
 
@@ -219,7 +180,6 @@ function ImageEditor({ file, onConfirm, onCancel }) {
     setCropH(h);
   };
 
-  // Confirm crop
   const handleConfirm = () => {
     if (!img) return;
 
@@ -229,9 +189,6 @@ function ImageEditor({ file, onConfirm, onCancel }) {
     out.height = cropH;
 
     const ctx = out.getContext('2d');
-
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
 
     ctx.drawImage(
       img,
@@ -280,28 +237,20 @@ function ImageEditor({ file, onConfirm, onCancel }) {
               ref={canvasRef}
               style={{
                 ...s.previewCanvas,
-                cursor: dragging
-                  ? 'grabbing'
-                  : 'grab',
+                cursor: dragging ? 'grabbing' : 'grab',
               }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleMouseUp}
             />
 
-            {/* Controls */}
+            {/* Dimension controls */}
             <div style={s.dimGrid}>
               {/* Width */}
               <div style={s.dimBlock}>
                 <div style={s.dimLabelRow}>
-                  <span style={s.dimLabel}>
-                    Width
-                  </span>
-
+                  <span style={s.dimLabel}>Width</span>
                   <span style={s.dimVal}>
                     {cropW}px
                   </span>
@@ -459,37 +408,24 @@ function ImageEditor({ file, onConfirm, onCancel }) {
   );
 }
 
-// ── Main Component ──────────────────────────────────────────────────────────
+// ── Main Categories Component ───────────────────────────────────────────────
 function Categories() {
-  const [categories, setCategories] =
-    useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const [loading, setLoading] =
-    useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editingCat, setEditingCat] = useState(null);
 
-  const [error, setError] =
-    useState(null);
-
-  const [showModal, setShowModal] =
-    useState(false);
-
-  const [editingCat, setEditingCat] =
-    useState(null);
-
-  const [formData, setFormData] =
-    useState({
-      name: '',
-      description: '',
-      image: null,
-    });
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    image: null,
+  });
 
   // Image state
-  const [rawFile, setRawFile] =
-    useState(null);
-
-  const [croppedFile, setCroppedFile] =
-    useState(null);
-
+  const [rawFile, setRawFile] = useState(null);
+  const [croppedFile, setCroppedFile] = useState(null);
   const [croppedPreview, setCroppedPreview] =
     useState('');
 
@@ -520,27 +456,6 @@ function Categories() {
   useEffect(() => {
     fetchCategories();
   }, [fetchCategories]);
-
-  // ESC close
-  useEffect(() => {
-    const handleEsc = (e) => {
-      if (e.key === 'Escape') {
-        closeModal();
-      }
-    };
-
-    window.addEventListener(
-      'keydown',
-      handleEsc
-    );
-
-    return () => {
-      window.removeEventListener(
-        'keydown',
-        handleEsc
-      );
-    };
-  }, []);
 
   // Clipboard paste
   useEffect(() => {
@@ -579,7 +494,6 @@ function Categories() {
     };
   }, [showModal]);
 
-  // Open editor
   const openEditor = (file) => {
     if (!file) return;
 
@@ -588,16 +502,10 @@ function Categories() {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image must be under 5MB');
-      return;
-    }
-
     setRawFile(file);
     setShowEditor(true);
   };
 
-  // File picker
   const handleFileChange = (e) => {
     const file = e.target.files[0];
 
@@ -606,7 +514,6 @@ function Categories() {
     }
   };
 
-  // Drop
   const handleDrop = (e) => {
     e.preventDefault();
 
@@ -638,45 +545,31 @@ function Categories() {
     );
   };
 
-  // Crop confirmed
   const handleEditorConfirm = (
     file,
     previewUrl
   ) => {
-    if (croppedPreview) {
-      URL.revokeObjectURL(croppedPreview);
-    }
-
     setCroppedFile(file);
     setCroppedPreview(previewUrl);
-
     setShowEditor(false);
   };
 
-  // Cancel editor
   const handleEditorCancel = () => {
     setRawFile(null);
     setShowEditor(false);
   };
 
-  // Remove image
   const removeImage = () => {
-    if (croppedPreview) {
-      URL.revokeObjectURL(croppedPreview);
-    }
-
     setCroppedFile(null);
     setCroppedPreview('');
   };
 
-  // Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const form = new FormData();
 
     form.append('name', formData.name);
-
     form.append(
       'description',
       formData.description
@@ -716,7 +609,6 @@ function Categories() {
       }
 
       closeModal();
-
       fetchCategories();
     } catch (err) {
       alert(
@@ -727,14 +619,8 @@ function Categories() {
     }
   };
 
-  // Close modal
   const closeModal = () => {
-    if (croppedPreview) {
-      URL.revokeObjectURL(croppedPreview);
-    }
-
     setShowModal(false);
-
     setEditingCat(null);
 
     setFormData({
@@ -748,7 +634,6 @@ function Categories() {
     setRawFile(null);
   };
 
-  // Delete
   const handleDelete = async (id) => {
     if (
       !window.confirm(
@@ -852,10 +737,6 @@ function Categories() {
                       image: null,
                     });
 
-                    setCroppedPreview(
-                      category.imageUrl || ''
-                    );
-
                     setShowModal(true);
                   }}
                 >
@@ -943,7 +824,7 @@ function Categories() {
                     <div style={s.previewMeta}>
                       <span style={s.previewName}>
                         {croppedFile?.name ||
-                          'Current image'}
+                          'Selected image'}
                       </span>
 
                       <div
@@ -991,8 +872,8 @@ function Categories() {
                     </span>
 
                     <span style={s.dropSub}>
-                      Free crop + resize
-                      supported
+                      You can crop & resize
+                      before upload
                     </span>
                   </div>
                 )}
@@ -1052,8 +933,6 @@ const s = {
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
-    transition:
-      'border-color .2s, background .2s',
   },
 
   dropPrompt: {
@@ -1218,8 +1097,6 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'flex-end',
-    marginBottom: 2,
   },
 
   presetRow: {
